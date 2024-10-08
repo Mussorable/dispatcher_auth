@@ -1,4 +1,5 @@
-from crypt import methods
+from gc import callbacks
+from typing import final
 
 from flask import request, jsonify
 from flask_jwt_extended import create_access_token
@@ -6,6 +7,7 @@ from flask_jwt_extended import create_access_token
 from app import db
 from app.main import bp
 from app.models import User
+from app.producer import send_message
 
 
 @bp.route('/register', methods=['GET', 'POST'])
@@ -36,6 +38,9 @@ def register():
 def login():
     data = request.get_json()
 
+    if not data:
+        return jsonify({'message': 'Missing data'}), 400
+
     username = data.get('username')
     password = data.get('password')
 
@@ -45,6 +50,18 @@ def login():
             'id': existed_user.id,
             'username': existed_user.username,
         })
-        return jsonify({'access_token': access_token}), 200
 
+        message = {
+            'user_id': existed_user.id,
+            'access_token': access_token,
+            'event': 'login',
+        }
+
+        try:
+            send_message('user-tokens', message, callback=lambda err, msg: print(err) if err else None)
+        except Exception as e:
+            # save to log
+            print(str(e))
+
+        return jsonify({'message': 'Login successful'}), 200
     return jsonify({'message': 'Invalid username or password'}), 401
