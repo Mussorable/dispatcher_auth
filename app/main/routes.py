@@ -26,8 +26,23 @@ def register():
         new_user = User(username=username, email=email)
         new_user.set_password(password)
 
+        access_token = create_access_token(identity={
+            'user_id': new_user.id,
+            'username': new_user.username
+        })
+
         db.session.add(new_user)
         db.session.commit()
+
+        message = {
+            'access_token': access_token,
+            'event': 'register'
+        }
+
+        try:
+            send_message(access_token, message, callback=lambda err, msg: print(err) if err else None)
+        except Exception as e:
+            print(e)
 
         return jsonify({'message': f'User @{new_user.username} created'}), 201
 
@@ -52,7 +67,6 @@ def login():
         })
 
         message = {
-            'user_id': existed_user.id,
             'access_token': access_token,
             'event': 'login',
         }
